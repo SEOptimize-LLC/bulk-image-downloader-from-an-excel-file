@@ -225,7 +225,6 @@ if uploaded_file is not None:
                         if original_filename:
                             # Use the original filename
                             filename = original_filename
-                            st.write(f"✓ Using original filename: {filename}")
 
                             # Handle duplicates by appending a number
                             if filename in used_filenames:
@@ -235,12 +234,10 @@ if uploaded_file is not None:
                                 while filename in used_filenames:
                                     filename = f"{name_part}_{counter}{ext_part}"
                                     counter += 1
-                                st.write(f"  → Renamed to avoid duplicate: {filename}")
                         else:
                             # Fallback to sequential naming if we can't extract original filename
                             ext = get_file_extension(url)
                             filename = f"image_{start_row + idx:04d}{ext}"
-                            st.write(f"⚠ Could not extract filename, using: {filename}")
 
                         used_filenames.add(filename)
 
