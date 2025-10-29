@@ -48,6 +48,20 @@ def get_file_extension(url, content_type=None):
     # Default to .jpg
     return '.jpg'
 
+def get_original_filename(url):
+    """Extract original filename from URL."""
+    try:
+        parsed_url = urlparse(url)
+        path = parsed_url.path
+        if path:
+            # Get the last part of the path (the filename)
+            filename = Path(path).name
+            if filename:
+                return filename
+    except Exception:
+        pass
+    return None
+
 def download_image(url, timeout=30):
     """Download a single image from URL."""
     try:
@@ -178,6 +192,7 @@ if uploaded_file is not None:
                 # Results storage
                 results = []
                 downloaded_images = []
+                used_filenames = set()  # Track used filenames to avoid duplicates
 
                 # Download images
                 for idx, url in enumerate(urls):
@@ -200,9 +215,27 @@ if uploaded_file is not None:
                     image_data, error = download_image(url.strip(), timeout=timeout_setting)
 
                     if image_data:
-                        # Determine file extension
-                        ext = get_file_extension(url)
-                        filename = f"image_{start_row + idx:04d}{ext}"
+                        # Try to get original filename from URL
+                        original_filename = get_original_filename(url)
+
+                        if original_filename:
+                            # Use the original filename
+                            filename = original_filename
+
+                            # Handle duplicates by appending a number
+                            if filename in used_filenames:
+                                name_part = Path(filename).stem
+                                ext_part = Path(filename).suffix
+                                counter = 1
+                                while filename in used_filenames:
+                                    filename = f"{name_part}_{counter}{ext_part}"
+                                    counter += 1
+                        else:
+                            # Fallback to sequential naming if we can't extract original filename
+                            ext = get_file_extension(url)
+                            filename = f"image_{start_row + idx:04d}{ext}"
+
+                        used_filenames.add(filename)
 
                         downloaded_images.append({
                             'filename': filename,
