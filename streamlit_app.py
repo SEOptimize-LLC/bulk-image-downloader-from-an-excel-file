@@ -51,15 +51,19 @@ def get_file_extension(url, content_type=None):
 def get_original_filename(url):
     """Extract original filename from URL."""
     try:
+        # Parse the URL and get the path
         parsed_url = urlparse(url)
-        path = parsed_url.path
+        path = parsed_url.path.rstrip('/')  # Remove trailing slashes
+
         if path:
             # Get the last part of the path (the filename)
             filename = Path(path).name
-            if filename:
+            # Make sure we have a filename and it has content
+            if filename and len(filename) > 0 and '.' in filename:
                 return filename
-    except Exception:
-        pass
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error extracting filename from {url}: {e}")
     return None
 
 def download_image(url, timeout=30):
@@ -216,11 +220,12 @@ if uploaded_file is not None:
 
                     if image_data:
                         # Try to get original filename from URL
-                        original_filename = get_original_filename(url)
+                        original_filename = get_original_filename(url.strip())
 
                         if original_filename:
                             # Use the original filename
                             filename = original_filename
+                            st.write(f"✓ Using original filename: {filename}")
 
                             # Handle duplicates by appending a number
                             if filename in used_filenames:
@@ -230,10 +235,12 @@ if uploaded_file is not None:
                                 while filename in used_filenames:
                                     filename = f"{name_part}_{counter}{ext_part}"
                                     counter += 1
+                                st.write(f"  → Renamed to avoid duplicate: {filename}")
                         else:
                             # Fallback to sequential naming if we can't extract original filename
                             ext = get_file_extension(url)
                             filename = f"image_{start_row + idx:04d}{ext}"
+                            st.write(f"⚠ Could not extract filename, using: {filename}")
 
                         used_filenames.add(filename)
 
