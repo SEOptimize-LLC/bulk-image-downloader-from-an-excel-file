@@ -7,6 +7,7 @@ import zipfile
 from PIL import Image
 from urllib.parse import urlparse
 import time
+import re
 
 st.set_page_config(
     page_title="Bulk Image Downloader",
@@ -64,6 +65,39 @@ def get_original_filename(url):
     except Exception as e:
         # Log the error for debugging
         print(f"Error extracting filename from {url}: {e}")
+    return None
+
+def extract_date_path(url):
+    """Extract YEAR/MONTH path from WordPress-style URLs.
+
+    Looks for patterns like /2021/11/ in the URL path and returns '2021/11'.
+    Returns None if no date pattern is found.
+
+    Example:
+        https://example.com/wp-content/uploads/2021/11/image.png -> '2021/11'
+    """
+    try:
+        parsed_url = urlparse(url)
+        path = parsed_url.path
+
+        # Match patterns like /YYYY/MM/ where YYYY is 4 digits and MM is 2 digits
+        # This pattern looks for year (1900-2099) followed by month (01-12)
+        pattern = r'/(\d{4})/(\d{2})/'
+        match = re.search(pattern, path)
+
+        if match:
+            year = match.group(1)
+            month = match.group(2)
+
+            # Validate that the year and month are reasonable
+            year_int = int(year)
+            month_int = int(month)
+
+            if 1900 <= year_int <= 2099 and 1 <= month_int <= 12:
+                return f"{year}/{month}"
+    except Exception as e:
+        print(f"Error extracting date path from {url}: {e}")
+
     return None
 
 def download_image(url, timeout=30):
@@ -219,6 +253,9 @@ if uploaded_file is not None:
                     image_data, error = download_image(url.strip(), timeout=timeout_setting)
 
                     if image_data:
+                        # Extract date path (YEAR/MONTH) from URL
+                        date_path = extract_date_path(url.strip())
+
                         # Try to get original filename from URL
                         original_filename = get_original_filename(url.strip())
 
@@ -243,6 +280,7 @@ if uploaded_file is not None:
 
                         downloaded_images.append({
                             'filename': filename,
+                            'date_path': date_path,  # Store the date path (YEAR/MONTH or None)
                             'data': image_data
                         })
 
@@ -274,7 +312,15 @@ if uploaded_file is not None:
                     zip_buffer = io.BytesIO()
                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                         for img in downloaded_images:
-                            zip_file.writestr(img['filename'], img['data'])
+                            # Use date path if available to create folder structure (YEAR/MONTH)
+                            if img.get('date_path'):
+                                # Create path like: 2021/11/image-filename.png
+                                zip_path = f"{img['date_path']}/{img['filename']}"
+                            else:
+                                # If no date path found, put in 'no-date' folder
+                                zip_path = f"no-date/{img['filename']}"
+
+                            zip_file.writestr(zip_path, img['data'])
 
                     zip_buffer.seek(0)
 
